@@ -1,43 +1,80 @@
+import os
+
 SCALE_IMAGE = 1
-IMAGE_LOCATION="Che_Guevara_Smurf.jpg"
-IMAGE_DIRECTORY=None
-GRID_X=7
-GRID_Y=7
+IMAGE_SOURCE="/Users/alp/Documents/Processing3_ws/sketches/tesselator/sample_pics/smurflib"
+#IMAGE_SOURCE="/Users/alp/Desktop/caixa_gridding"
+DIR_SAVED_FRAMES="saved_tesselations"
+GRID_X=5
+GRID_Y=5
+
+IMAGE_RE = re.compile("\.jpg$|\.png$")
 
 def setup():
     size(500,500)
     frameRate(1)
     frame.setResizable(True) # use frame instead.
     
-
 def draw():
-    x_max = 0
-    y_max = 0
+    grid_width, grid_height = get_grid_sizes(IMAGE_SOURCE, SCALE_IMAGE)
 
     # Draw the images to the screen 
-    for img, img_x, img_y, img_width, img_height in griderator(GRID_X, GRID_Y, image_file=IMAGE_LOCATION, image_dir=IMAGE_DIRECTORY):
-        image(img, img_x, img_y, img_width, img_height)
-        x_max = img_x + img_width
-        y_max = img_y + img_height
-        
-    print("Tesselation size: %i x %i"%(x_max, y_max))
-    this.surface.setSize(x_max, y_max)
+    for img, pos in zip(imiterator(IMAGE_SOURCE), griderator(GRID_X, GRID_Y, grid_width, grid_height)):
+        img.resize(grid_width, grid_height)
+        image(img, pos[0], pos[1])
+
+    noLoop()
     
-def griderator(grid_x, grid_y, image_file=None, image_dir=None):
-    assert (image_file and image_dir == None) or (image_file == None and image_dir)
-    if image_file:
-        img = loadImage(IMAGE_LOCATION)
-        x_pointer = 0
-        y_pointer = 0
-        image_width = int(img.width * SCALE_IMAGE)
-        image_height = int(img.height * SCALE_IMAGE)
-        
-        for i_y in range(grid_y):
-            y_pointer = i_y * image_height
-            for i_x in range(grid_x):
-                x_pointer = i_x * image_width
-                yield img, x_pointer, y_pointer, image_width, image_height
+def get_grid_sizes(image_source, scale=1):
+    get_from_dir = os.path.isdir(image_source)
+    if get_from_dir:
+        image_filenames = os.listdir(image_source) 
+        image_filenames.sort()
+        image_files = [os.path.join(image_source, fn) for fn in image_filenames if IMAGE_RE.search(fn)]
+        image_file = image_files[0]
     else:
-        #TODO
-        yield None, 0,0 
+        image_file = image_source
     
+    img = loadImage(image_file)
+        
+    image_width = int(img.width * scale)
+    image_height = int(img.height * scale)
+    return image_width, image_height
+
+def griderator(grid_x, grid_y, grid_width, grid_height, x_0=0, y_0=0):
+    y_pos = y_0
+    for y_i in range(grid_y):
+        x_pos = x_0
+        for x_i in range(grid_x):
+            yield x_pos, y_pos
+            x_pos += grid_width
+        y_pos += grid_height
+    
+#an iterator for images. 
+def imiterator(image_source):
+    get_from_dir = os.path.isdir(image_source)
+    if get_from_dir:
+        image_filenames = os.listdir(image_source) 
+        image_filenames.sort()
+        image_files = [os.path.join(image_source, fn) for fn in image_filenames if IMAGE_RE.search(fn)]
+    else:
+        image_files = [image_source]
+    
+    image_index = 0
+        
+    while True:
+        img = loadImage(image_files[image_index])
+        yield img
+        
+        if get_from_dir:
+            image_index += 1
+            if image_index >= len(image_files):
+                image_index = 0
+                
+def keyPressed():
+    if key == 'X' or key == 'x':
+        print("exiting")
+        exit()
+    if key == 'S' or key == 's':
+        file_id = os.path.basename(IMAGE_SOURCE)
+        saveFrame("%s/%s.png"%(DIR_SAVED_FRAMES, file_id))
+        print("Saved frame to %s/%s.png"%(DIR_SAVED_FRAMES, file_id))
